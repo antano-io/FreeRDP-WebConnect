@@ -113,6 +113,11 @@ node('freerdp-build') {
             echo "Deploying ${FULL_IMAGE} to namespace '${DEPLOY_NS}' (branch='${branch}')."
             withCredentials([file(credentialsId: KUBECONFIG_ID, variable: 'KUBECONFIG')]) {
                 sh """
+                    # Deploy the wsgate runtime config as a Secret (source of truth is
+                    # kubernetes/wsgate.ini in this repo).
+                    kubectl create secret generic wsgate-config \\
+                        --from-file=wsgate.ini=kubernetes/wsgate.ini \\
+                        --dry-run=client -o yaml | kubectl apply -f -
                     kubectl apply -f ${K8S_MANIFEST}
                     kubectl -n ${DEPLOY_NS} rollout status deploy/${DEPLOY_NAME} --timeout=180s
                 """
