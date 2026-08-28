@@ -80,6 +80,7 @@ namespace wsgate{
             void UnregisterRdpSession(rdp_ptr rdp);
             WsRdpOverrideParams getOverrideParams();
             const string & GetClientHostname() const;
+            UINT32 GetKeyboardLayout() const;
         private:
             typedef enum {
                 TEXT,
@@ -102,6 +103,7 @@ namespace wsgate{
             string m_sPidFile;
             string m_sClientHostname;
             bool m_bIMEDefault;
+            UINT32 m_nKeyboardLayout;
             bool m_bDebug;
             bool m_bEnableCore;
             SessionMap m_SessionMap;

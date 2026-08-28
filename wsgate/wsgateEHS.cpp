@@ -32,6 +32,7 @@ namespace wsgate{
         , m_sPidFile()
         , m_sClientHostname()
         , m_bIMEDefault(false)
+        , m_nKeyboardLayout(0)
         , m_bDebug(false)
         , m_bEnableCore(false)
         , m_SessionMap()
@@ -919,6 +920,12 @@ namespace wsgate{
                 } else {
                     m_bIMEDefault = false;
                 }
+                if (pt.get_optional<std::string>("global.keyboardlayout")) {
+                    // Accept hex (0x0407) or decimal (1031) input locale ids.
+                    m_nKeyboardLayout = strtoul(pt.get<std::string>("global.keyboardlayout").c_str(), NULL, 0);
+                } else {
+                    m_nKeyboardLayout = 0;
+                }
                 if (pt.get_optional<std::string>("openstack.authurl")) {
                     m_sOpenStackAuthUrl.assign(pt.get<std::string>("openstack.authurl"));
                 } else {
@@ -1149,5 +1156,9 @@ namespace wsgate{
 
     const string & WsGate::GetClientHostname() const {
         return m_sClientHostname;
+    }
+
+    UINT32 WsGate::GetKeyboardLayout() const {
+        return m_nKeyboardLayout;
     }
 }

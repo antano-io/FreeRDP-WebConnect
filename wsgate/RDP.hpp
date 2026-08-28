@@ -85,7 +85,8 @@ namespace wsgate {
              * @return true on success.
              */
             bool Connect(std::string host, std::string pcb, std::string user, std::string domain,
-                    std::string pass, const WsRdpParams &params, std::string clientHostname = "");
+                    std::string pass, const WsRdpParams &params, std::string clientHostname = "",
+                    UINT32 keyboardLayout = 0);
             /**
              * Actively terminates a session.
              * @return true on success.

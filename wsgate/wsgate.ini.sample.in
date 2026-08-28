@@ -24,6 +24,11 @@ port = 8000
 # Possible values: true, false; Default: false
 #imedefault = true
 
+# Keyboard layout (input locale id) advertised to the RDP server, so physical
+# keyboard input is interpreted correctly. Hex or decimal.
+# 0x0407 = German, 0x0409 = US English
+#keyboardlayout = 0x0407
+
 # Set syslog logging facility.
 # Possible values: see syslog(3), without the LOG_ prefix
 # Default: DAEMON.

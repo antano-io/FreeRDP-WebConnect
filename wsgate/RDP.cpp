@@ -373,7 +373,7 @@ namespace wsgate {
     }
 
     bool RDP::Connect(string host, string pcb, string user, string domain, string pass,
-            const WsRdpParams &params, string clientHostname)
+            const WsRdpParams &params, string clientHostname, UINT32 keyboardLayout)
     {
         if (!m_rdpSettings) {
             throw tracing::runtime_error("m_rdpSettings is NULL");
@@ -410,6 +410,11 @@ namespace wsgate {
             client_hostname[sizeof(client_hostname) - 1] = '\0';
             m_rdpSettings->ClientHostname = strdup(client_hostname);
 #endif
+        }
+        // Keyboard layout (input locale id) advertised to the RDP server, so
+        // physical-key input is interpreted correctly (e.g. 0x0407 = German).
+        if (keyboardLayout != 0) {
+            m_rdpSettings->KeyboardLayout = keyboardLayout;
         }
         // Always set Username/Password (even to empty strings) so FreeRDP 1.1
         // does not see NULL credentials and can connect to hosts that require

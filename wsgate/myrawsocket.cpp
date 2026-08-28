@@ -90,7 +90,8 @@ namespace wsgate{
         SplitUserDomain(user, username, domain);
 
         rdp_ptr r = this->m_cmap[this->conn].get<2>();
-        r->Connect(host, pcb, username, domain, pass, params, m_parent->GetClientHostname());
+        r->Connect(host, pcb, username, domain, pass, params,
+                   m_parent->GetClientHostname(), m_parent->GetKeyboardLayout());
         m_parent->RegisterRdpSession(r);
 
         log::debug << "RDP Host:              '" << host << "'" << endl;
