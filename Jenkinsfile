@@ -2,9 +2,9 @@
 //
 // Pipeline:
 //   1. Checkout
-//   2. Build   - cmake + make to compile wsgate
-//   3. Docker  - build + push wsgate image to Docker Hub on the dedicated
-//                `freerdp-build` agent (inherits from base, has FreeRDP 1.1 + EHS).
+//   2. Build   - cmake + make to compile wsgate (source lives in wsgate/)
+//   3. Docker  - build + push wsgate image on the `container-build` agent
+//                (DinD sidecar, no host Docker socket).
 //   4. Render  - Kubernetes manifest with the concrete image tag,
 //                archived as a build artifact.
 //   5. Deploy  - `kubectl apply` to the cluster, gated: only when the change
@@ -12,13 +12,12 @@
 //                Verified via `kubectl rollout status` (fails on timeout).
 //
 // Requirements:
-//   - The `freerdp-build` agent label is defined in the greenfield JCasC
-//     Kubernetes cloud templates (values.yaml -> agent image:
+//   - `freerdp-build` agent: has FreeRDP 1.1 + EHS + C++ toolchain (agent image
 //     antanoio/jenkins-agent-freerdp:1.0.0).
-//   - `docker` CLI is available in the freerdp-build agent container.
+//   - `container-build` agent: Docker CLI + DinD sidecar (DOCKER_HOST set).
 //   - `kubectl` on PATH + network access to the cluster API (for the Deploy stage).
-//   - A Jenkins *file* credential ID `freerdp-kubeconfig` holding a kubeconfig
-//     for a user with RBAC in namespace `freerdp-webconnect`.
+//   - A Jenkins *file* credential ID `calistix-kubeconfig` holding a kubeconfig
+//     with cluster deploy permissions (same one used by calistix_web).
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -35,6 +34,15 @@ def KUBECONFIG_ID   = 'calistix-kubeconfig'
 def DEPLOY_NS       = 'freerdp-webconnect'
 def DEPLOY_NAME     = 'wsgate'
 
+// wsgate's CMakeLists.txt lives in the wsgate/ subdirectory. GCC 14 turns
+// implicit declarations into errors, so the same relax flags as the agent
+// image build are used here.
+def CMAKE_FLAGS = [
+    '-DHAVE_CPLUSPLUS11=ON',
+    '-DCMAKE_C_FLAGS="-Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types"',
+    '-DCMAKE_CXX_FLAGS="-std=c++11 -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types"'
+].join(' ')
+
 properties([
     parameters([
         booleanParam(name: 'DEPLOY', defaultValue: false,
@@ -49,6 +57,8 @@ def shouldDeploy = {
 // ---------------------------------------------------------------------------
 // Pipeline
 // ---------------------------------------------------------------------------
+def buildResult = 'SUCCESS'
+
 node('freerdp-build') {
     try {
         stage('Checkout') {
@@ -58,27 +68,30 @@ node('freerdp-build') {
         }
 
         stage('Build') {
-            sh 'mkdir -p build'
-            dir('build') {
-                sh 'cmake ..'
-                sh 'make -j$(nproc)'
+            dir('wsgate') {
+                sh 'rm -rf build && mkdir -p build'
+                dir('build') {
+                    sh "cmake ${CMAKE_FLAGS} .."
+                    sh 'make -j$(nproc)'
+                }
             }
-            archiveArtifacts artifacts: 'build/wsgate', fingerprint: true
+            archiveArtifacts artifacts: 'wsgate/build/wsgate', fingerprint: true
         }
 
         stage('Docker · Build & Push') {
+            // The Dockerfile builds wsgate from the wsgate/ source tree, so the
+            // whole context must be stashed for the container-build agent.
             stash name: 'docker-context',
-                  includes: 'Dockerfile,build/wsgate,webroot/**,kubernetes/**',
+                  includes: 'Dockerfile,.dockerignore,wsgate/**,kubernetes/**',
                   allowEmpty: false
 
-            // Re-use the same freerdp-build agent for Docker; its image does
-            // not contain a Docker daemon, so we rely on the host Docker socket
-            // or a sidecar. If your freerdp-build template adds a dind sidecar,
-            // configure DOCKER_HOST accordingly.
-            def image = docker.build("${FULL_IMAGE}", '-f Dockerfile .')
-            docker.withRegistry(REGISTRY, DOCKERHUB_CREDS) {
-                image.push()
-                image.push('latest')
+            node('container-build') {
+                unstash 'docker-context'
+                def image = docker.build("${FULL_IMAGE}", '-f Dockerfile .')
+                docker.withRegistry(REGISTRY, DOCKERHUB_CREDS) {
+                    image.push()
+                    image.push('latest')
+                }
             }
         }
 
@@ -105,6 +118,10 @@ node('freerdp-build') {
                 """
             }
         }
+    } catch (Exception e) {
+        buildResult = 'FAILURE'
+        echo "Pipeline failed: ${e}"
+        throw e
     } finally {
         stage('Report') {
             try {
@@ -115,18 +132,15 @@ node('freerdp-build') {
         }
 
         stage('Slack Notify') {
-            def color_good = '#00FF00'
-            def color_unstable = '#eb9b34'
-            def color_error = '#EE0000FF'
-            if (currentBuild.currentResult == 'FAILURE') {
-                slackSend(color: "${color_error}", message: "*${currentBuild.currentResult}:* Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})\nImage: ${FULL_IMAGE}")
-            }
-            if (currentBuild.currentResult == 'UNSTABLE') {
-                slackSend(color: "${color_unstable}", message: "*${currentBuild.currentResult}:* Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})\nImage: ${FULL_IMAGE}")
-            }
-            if (currentBuild.currentResult == 'SUCCESS') {
-                slackSend(color: "${color_good}", message: "*${currentBuild.currentResult}:* Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})\nImage: ${FULL_IMAGE}")
-            }
+            // In scripted pipelines currentBuild.currentResult is not updated yet
+            // inside the finally block, so use the flag captured in the catch.
+            def outcome = (buildResult == 'SUCCESS') ? currentBuild.currentResult : buildResult
+            def color = '#00FF00'
+            if (outcome == 'FAILURE')      { color = '#EE0000FF' }
+            else if (outcome == 'UNSTABLE') { color = '#eb9b34' }
+            else if (outcome == 'ABORTED')  { color = '#FF8C00' }
+            slackSend(color: color,
+                      message: "*${outcome}:* Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})\nImage: ${FULL_IMAGE}")
         }
 
         cleanWs()
