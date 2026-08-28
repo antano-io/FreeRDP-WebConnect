@@ -1,0 +1,161 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: freerdp-webconnect
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wsgate
+  namespace: freerdp-webconnect
+  labels:
+    app: wsgate
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wsgate
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: wsgate
+    spec:
+      imagePullSecrets:
+        - name: registrypullsecret
+      containers:
+        - name: wsgate
+          # __IMAGE__ is replaced by the CI pipeline with the concrete
+          # image reference (e.g. antanoio/wsgate:<build>).
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: https
+              containerPort: 8443
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: wsgate-config
+              mountPath: /etc/wsgate
+              readOnly: true
+            - name: wsgate-webroot
+              mountPath: /usr/share/wsgate/webroot
+              readOnly: true
+            - name: wsgate-pid
+              mountPath: /var/run/wsgate
+      volumes:
+        - name: wsgate-config
+          secret:
+            secretName: wsgate-config
+        - name: wsgate-webroot
+          configMap:
+            name: wsgate-webroot
+        - name: wsgate-pid
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wsgate
+  namespace: freerdp-webconnect
+  labels:
+    app: wsgate
+spec:
+  type: ClusterIP
+  selector:
+    app: wsgate
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: https
+      port: 8443
+      targetPort: https
+---
+# TLS certificate for wsgate, issued via the cluster-wide
+# letsencrypt-prod-calistix ClusterIssuer (DNS-01 via Hetzner).
+# Secret wsgate-tls is created automatically by cert-manager.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wsgate-tls
+  namespace: freerdp-webconnect
+spec:
+  dnsNames:
+    - wsgate.fpsvisionary.com
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod-calistix
+  secretName: wsgate-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wsgate
+  namespace: freerdp-webconnect
+  labels:
+    app: wsgate
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-set-headers: "freerdp-webconnect/custom-headers"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - wsgate.fpsvisionary.com
+      secretName: wsgate-tls
+  rules:
+    - host: wsgate.fpsvisionary.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wsgate
+                port:
+                  number: 8080
+---
+# ConfigMap / Secret notes:
+#
+# 1. Create the wsgate config Secret from the rendered wsgate.ini:
+#      kubectl -n freerdp-webconnect create secret generic wsgate-config \
+#        --from-file=wsgate.ini=wsgate.ini
+#
+# 2. Create the webroot ConfigMap from the project's webroot/ directory:
+#      kubectl -n freerdp-webconnect create configmap wsgate-webroot \
+#        --from-file=webroot/
+#
+# 3. Create the image pull secret (copy from an existing namespace):
+#      kubectl get secret registrypullsecret -n <source-ns> -o yaml | \
+#        grep -vE '^\s*(namespace|uid|resourceVersion|creationTimestamp):' | \
+#        kubectl apply -f - -n freerdp-webconnect
+#
+# 4. If wsgate handles its own TLS, change the Service port target from
+#    8080 to 8443 and remove the nginx TLS annotations. In that case the
+#    Ingress should either be omitted or configured for TCP pass-through.
