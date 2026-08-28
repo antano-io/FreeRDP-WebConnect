@@ -116,7 +116,6 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-set-headers: "freerdp-webconnect/custom-headers"
 spec:
   ingressClassName: nginx
   tls:

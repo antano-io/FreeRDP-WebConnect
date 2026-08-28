@@ -537,7 +537,11 @@ namespace wsgate{
         if (HTML == mt) {
             ostringstream oss;
 
-            oss << (request->Secure() ? "wss://" : "ws://") << thisHost << "/wsgate";
+            // Behind a TLS-terminating proxy (nginx ingress) EHS sees plain
+            // HTTP; honor X-Forwarded-Proto so the WebSocket URI is wss://.
+            string xfp = request->Headers("X-Forwarded-Proto");
+            bool secure = request->Secure() || iequals(xfp, "https");
+            oss << (secure ? "wss://" : "ws://") << thisHost << "/wsgate";
 
             replace_all(body, "%WSURI%", oss.str());
             replace_all(body, "%JSDEBUG%", (bDynDebug ? "-debug" : ""));

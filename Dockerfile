@@ -49,8 +49,10 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libboost_*.so* /usr/lib/x86_64-lin
 COPY --from=builder /opt/openssl-1.1.1/lib/libssl.so.1.1*    /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /opt/openssl-1.1.1/lib/libcrypto.so.1.1* /usr/lib/x86_64-linux-gnu/
 
-# wsgate binary and processed webroot (CMake strips the -debug assets).
+# wsgate binary. The webroot is a merge of the full source tree (images,
+# keyboard layouts, favicon...) and the CMake-processed (debug-stripped) assets.
 COPY --from=builder /build/wsgate/build/wsgate /usr/sbin/wsgate
+COPY --from=builder /build/wsgate/webroot /usr/share/wsgate/webroot
 COPY --from=builder /build/wsgate/build/webroot /usr/share/wsgate/webroot
 
 # Default config; override at runtime with -c or mount a Secret here.
