@@ -31,6 +31,7 @@ namespace wsgate{
         , m_sDocumentRoot()
         , m_sPidFile()
         , m_sClientHostname()
+        , m_bIMEDefault(false)
         , m_bDebug(false)
         , m_bEnableCore(false)
         , m_SessionMap()
@@ -546,6 +547,7 @@ namespace wsgate{
 
             replace_all(body, "%WSURI%", oss.str());
             replace_all(body, "%JSDEBUG%", (bDynDebug ? "-debug" : ""));
+            replace_all(body, "%IME_DEFAULT%", m_bIMEDefault ? "true" : "false");
             string tmp;
             if(externalRequest)
             {
@@ -911,6 +913,11 @@ namespace wsgate{
                     m_sClientHostname.assign(pt.get<std::string>("global.clienthostname"));
                 } else {
                     m_sClientHostname.clear();
+                }
+                if (pt.get_optional<std::string>("global.imedefault")) {
+                    m_bIMEDefault = str2bool(pt.get<std::string>("global.imedefault"));
+                } else {
+                    m_bIMEDefault = false;
                 }
                 if (pt.get_optional<std::string>("openstack.authurl")) {
                     m_sOpenStackAuthUrl.assign(pt.get<std::string>("openstack.authurl"));

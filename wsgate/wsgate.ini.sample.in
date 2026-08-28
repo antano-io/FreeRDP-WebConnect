@@ -20,6 +20,10 @@ port = 8000
 # If omitted, the wsgate host/pod name is used.
 #clienthostname = DESKTOP-LKS9W3
 
+# Enable the multilingual (IME) keyboard by default in the web client.
+# Possible values: true, false; Default: false
+#imedefault = true
+
 # Set syslog logging facility.
 # Possible values: see syslog(3), without the LOG_ prefix
 # Default: DAEMON.

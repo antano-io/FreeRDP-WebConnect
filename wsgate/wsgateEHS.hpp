@@ -101,6 +101,7 @@ namespace wsgate{
             string m_sDocumentRoot;
             string m_sPidFile;
             string m_sClientHostname;
+            bool m_bIMEDefault;
             bool m_bDebug;
             bool m_bEnableCore;
             SessionMap m_SessionMap;
