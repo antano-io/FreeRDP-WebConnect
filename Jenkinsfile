@@ -117,7 +117,7 @@ node('freerdp-build') {
                     # kubernetes/wsgate.ini in this repo).
                     kubectl create secret generic wsgate-config \\
                         --from-file=wsgate.ini=kubernetes/wsgate.ini \\
-                        --dry-run=client -o yaml | kubectl apply -f -
+                        --dry-run=client -o yaml | kubectl apply -n ${DEPLOY_NS} -f -
                     kubectl apply -f ${K8S_MANIFEST}
                     kubectl -n ${DEPLOY_NS} rollout status deploy/${DEPLOY_NAME} --timeout=180s
                 """
