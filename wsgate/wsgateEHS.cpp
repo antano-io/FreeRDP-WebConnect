@@ -30,6 +30,7 @@ namespace wsgate{
         , m_sHostname()
         , m_sDocumentRoot()
         , m_sPidFile()
+        , m_sClientHostname()
         , m_bDebug(false)
         , m_bEnableCore(false)
         , m_SessionMap()
@@ -906,6 +907,11 @@ namespace wsgate{
                 } else {
                     m_sHostname.clear();
                 }
+                if (pt.get_optional<std::string>("global.clienthostname")) {
+                    m_sClientHostname.assign(pt.get<std::string>("global.clienthostname"));
+                } else {
+                    m_sClientHostname.clear();
+                }
                 if (pt.get_optional<std::string>("openstack.authurl")) {
                     m_sOpenStackAuthUrl.assign(pt.get<std::string>("openstack.authurl"));
                 } else {
@@ -1132,5 +1138,9 @@ namespace wsgate{
 
     WsRdpOverrideParams WsGate::getOverrideParams(){
         return this->overrideParams;
+    }
+
+    const string & WsGate::GetClientHostname() const {
+        return m_sClientHostname;
     }
 }

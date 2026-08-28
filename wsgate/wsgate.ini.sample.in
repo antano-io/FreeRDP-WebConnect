@@ -16,6 +16,10 @@ port = 8000
 # Set hostname (optional, for HTTP 1.1 host header comparison if running behind NAT)
 # hostname = localhost
 
+# Set client hostname sent to the RDP server (/client-hostname equivalent).
+# If omitted, the wsgate host/pod name is used.
+#clienthostname = DESKTOP-LKS9W3
+
 # Set syslog logging facility.
 # Possible values: see syslog(3), without the LOG_ prefix
 # Default: DAEMON.

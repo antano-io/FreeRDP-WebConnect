@@ -79,6 +79,7 @@ namespace wsgate{
             void RegisterRdpSession(rdp_ptr rdp);
             void UnregisterRdpSession(rdp_ptr rdp);
             WsRdpOverrideParams getOverrideParams();
+            const string & GetClientHostname() const;
         private:
             typedef enum {
                 TEXT,
@@ -99,6 +100,7 @@ namespace wsgate{
             string m_sHostname;
             string m_sDocumentRoot;
             string m_sPidFile;
+            string m_sClientHostname;
             bool m_bDebug;
             bool m_bEnableCore;
             SessionMap m_SessionMap;

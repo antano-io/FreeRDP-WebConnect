@@ -373,7 +373,7 @@ namespace wsgate {
     }
 
     bool RDP::Connect(string host, string pcb, string user, string domain, string pass,
-            const WsRdpParams &params)
+            const WsRdpParams &params, string clientHostname)
     {
         if (!m_rdpSettings) {
             throw tracing::runtime_error("m_rdpSettings is NULL");
@@ -397,15 +397,20 @@ namespace wsgate {
         m_rdpSettings->IgnoreCertificate = TRUE;
         m_rdpSettings->NegotiateSecurityLayer = FALSE;
         m_rdpSettings->ServerHostname = strdup(host.c_str());
-#ifdef HAVE_UNISTD_H
         // Client hostname sent to the RDP server (the /client-hostname option).
-        // The wsgate host/pod name is used as the client identity.
-        char client_hostname[256];
-        client_hostname[0] = '\0';
-        gethostname(client_hostname, sizeof(client_hostname) - 1);
-        client_hostname[sizeof(client_hostname) - 1] = '\0';
-        m_rdpSettings->ClientHostname = strdup(client_hostname);
+        // Prefer the configured wsgate.ini value; fall back to the local
+        // hostname so the server never sees an empty client name.
+        if (!clientHostname.empty()) {
+            m_rdpSettings->ClientHostname = strdup(clientHostname.c_str());
+        } else {
+#ifdef HAVE_UNISTD_H
+            char client_hostname[256];
+            client_hostname[0] = '\0';
+            gethostname(client_hostname, sizeof(client_hostname) - 1);
+            client_hostname[sizeof(client_hostname) - 1] = '\0';
+            m_rdpSettings->ClientHostname = strdup(client_hostname);
 #endif
+        }
         // Always set Username/Password (even to empty strings) so FreeRDP 1.1
         // does not see NULL credentials and can connect to hosts that require
         // no authentication.
