@@ -397,15 +397,14 @@ namespace wsgate {
         m_rdpSettings->IgnoreCertificate = TRUE;
         m_rdpSettings->NegotiateSecurityLayer = FALSE;
         m_rdpSettings->ServerHostname = strdup(host.c_str());
-        if (!user.empty()) {
-            m_rdpSettings->Username = strdup(user.c_str());
-        }
+        // Always set Username/Password (even to empty strings) so FreeRDP 1.1
+        // does not see NULL credentials and can connect to hosts that require
+        // no authentication.
+        m_rdpSettings->Username = strdup(user.c_str());
         if (!domain.empty()) {
             m_rdpSettings->Domain = strdup(domain.c_str());
         }
-        if (!pass.empty()) {
-            m_rdpSettings->Password = strdup(pass.c_str());
-        }
+        m_rdpSettings->Password = strdup(pass.c_str());
         //authentication is not needed when username and password is not specified
         if (user.empty() && pass.empty()){
             m_freerdp->Authenticate = nullptr;
