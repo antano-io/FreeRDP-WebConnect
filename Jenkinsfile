@@ -31,7 +31,7 @@ def FULL_IMAGE      = "${IMAGE_NAME}:${IMAGE_TAG}"
 def DOCKERHUB_CREDS = 'dockerhub-credentials'
 
 def K8S_MANIFEST    = 'kubernetes/deployment.yaml'
-def KUBECONFIG_ID   = 'freerdp-kubeconfig'
+def KUBECONFIG_ID   = 'calistix-kubeconfig'
 def DEPLOY_NS       = 'freerdp-webconnect'
 def DEPLOY_NAME     = 'wsgate'
 

@@ -60,18 +60,12 @@ spec:
             - name: wsgate-config
               mountPath: /etc/wsgate
               readOnly: true
-            - name: wsgate-webroot
-              mountPath: /usr/share/wsgate/webroot
-              readOnly: true
             - name: wsgate-pid
               mountPath: /var/run/wsgate
       volumes:
         - name: wsgate-config
           secret:
             secretName: wsgate-config
-        - name: wsgate-webroot
-          configMap:
-            name: wsgate-webroot
         - name: wsgate-pid
           emptyDir: {}
 ---
@@ -141,21 +135,16 @@ spec:
                 port:
                   number: 8080
 ---
-# ConfigMap / Secret notes:
+# Setup notes:
 #
 # 1. Create the wsgate config Secret from the rendered wsgate.ini:
 #      kubectl -n freerdp-webconnect create secret generic wsgate-config \
 #        --from-file=wsgate.ini=wsgate.ini
 #
-# 2. Create the webroot ConfigMap from the project's webroot/ directory:
-#      kubectl -n freerdp-webconnect create configmap wsgate-webroot \
-#        --from-file=webroot/
+# 2. The webroot is baked into the Docker image at /usr/share/wsgate/webroot.
+#    No ConfigMap is required.
 #
 # 3. Create the image pull secret (copy from an existing namespace):
 #      kubectl get secret registrypullsecret -n <source-ns> -o yaml | \
 #        grep -vE '^\s*(namespace|uid|resourceVersion|creationTimestamp):' | \
 #        kubectl apply -f - -n freerdp-webconnect
-#
-# 4. If wsgate handles its own TLS, change the Service port target from
-#    8080 to 8443 and remove the nginx TLS annotations. In that case the
-#    Ingress should either be omitted or configured for TCP pass-through.
