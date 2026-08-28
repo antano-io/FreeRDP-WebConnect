@@ -116,6 +116,8 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Only allow this source IP to reach the webapp.
+    nginx.ingress.kubernetes.io/whitelist-source-range: "136.243.103.28"
 spec:
   ingressClassName: nginx
   tls:
