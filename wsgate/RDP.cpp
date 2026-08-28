@@ -408,11 +408,14 @@ namespace wsgate {
         //authentication is not needed when username and password is not specified
         if (user.empty() && pass.empty()){
             m_freerdp->Authenticate = nullptr;
-            // Without credentials NLA cannot succeed (FreeRDP 1.1 picks the
-            // highest enabled protocol even when negotiation is disabled).
-            // Fall back to standard RDP/TLS security so the session can reach
-            // the logon screen or connect to hosts that need no authentication.
+            // Match the proven `sdl-freerdp ... /sec:tls /u:"" /p:""` behaviour:
+            // advertise TLS via the security negotiation request, and disable
+            // both NLA and the legacy RDP security layer. (FreeRDP 1.1 would
+            // otherwise fall back to NLA/RDP and the server rejects it.)
+            m_rdpSettings->NegotiateSecurityLayer = TRUE;
             m_rdpSettings->NlaSecurity = FALSE;
+            m_rdpSettings->TlsSecurity = TRUE;
+            m_rdpSettings->RdpSecurity = FALSE;
         }
         switch (params.perf) {
             case 0:
