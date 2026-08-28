@@ -39,7 +39,7 @@ wsgate.vkbd = new Class({
         this.VKI_alt = this.VKI_altlock = false;
         this.VKI_ctrl = this.VKI_ctrllock = false;
         this.VKI_dead = false; // Flag: dead key active
-        this.VKI_kt = 'US International';
+        this.VKI_kt = 'Deutsch'; // Default to the configured German layout
         this.VKI_size = this.options.size;
         this.VKI_keyCenter = 3;
         /* ***** i18n text strings ************************************* */
@@ -69,6 +69,11 @@ wsgate.vkbd = new Class({
                     this.VKI_layout[obj.displayname] = obj;
                     if (n == this.options.deflayout) {
                         this.VKI_kt = obj.displayname;
+                        // Update the already-rendered selector if the layouts
+                        // loaded asynchronously after the keyboard was built.
+                        if (this.kbSelect) {
+                            this.kbSelect.firstChild.nodeValue = obj.displayname;
+                        }
                     }
                 }.bind(this)
             }).addEvent('error', function(txt, err) {
